@@ -109,9 +109,12 @@ public class AutofillService extends AccessibilityService {
         // if returning to the source app from a successful AutofillActivity
         final int eventType = event.getEventType();
         final CharSequence eventPackageName = event.getPackageName();
+        if (eventPackageName == null) {
+            return;
+        }
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 && resultData != null
-                && eventPackageName != null && eventPackageName.equals(packageName)) {
+                && eventPackageName.equals(packageName)) {
             bindDecryptAndVerify();
         }
 
@@ -119,7 +122,6 @@ public class AutofillService extends AccessibilityService {
         // or if page changes in chrome
         if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 || (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-                && eventPackageName != null
                 && (eventPackageName.equals("com.android.chrome")
                 || eventPackageName.equals("com.android.browser")))) {
             // there is a chance for getRootInActiveWindow() to return null at any time. save it.
@@ -132,19 +134,21 @@ public class AutofillService extends AccessibilityService {
                     if (nodes.isEmpty()) {
                         nodes = root.findAccessibilityNodeInfosByViewId("com.android.browser:id/url");
                     }
-                    for (AccessibilityNodeInfo node : nodes)
-                        if (node.getText() != null) {
+                    for (AccessibilityNodeInfo node : nodes) {
+                        final CharSequence nodeText = node.getText();
+                        if (nodeText != null) {
                             try {
-                                webViewURL = new URL(node.getText().toString()).getHost();
+                                webViewURL = new URL(nodeText.toString()).getHost();
                             } catch (MalformedURLException e) {
                                 if (e.toString().contains("Protocol not found")) {
                                     try {
-                                        webViewURL = new URL("http://" + node.getText().toString()).getHost();
+                                        webViewURL = new URL("http://" + nodeText.toString()).getHost();
                                     } catch (MalformedURLException ignored) {
                                     }
                                 }
                             }
                         }
+                    }
                 }
             } catch (Exception e) {
                 // sadly we were unable to access the data we wanted
@@ -154,7 +158,6 @@ public class AutofillService extends AccessibilityService {
 
         // nothing to do if field is keychain app or system ui
         if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-                || eventPackageName != null
                 && (eventPackageName.equals("org.sufficientlysecure.keychain") || eventPackageName.equals("com.android.systemui"))) {
             dismissDialog(event);
             return;
