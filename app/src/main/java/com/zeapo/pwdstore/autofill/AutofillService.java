@@ -95,7 +95,7 @@ public class AutofillService extends AccessibilityService {
     }
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
+    public void onAccessibilityEvent(final AccessibilityEvent event) {
         // TODO there should be a better way of disabling service
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) {
             return;
@@ -107,19 +107,21 @@ public class AutofillService extends AccessibilityService {
         }
 
         // if returning to the source app from a successful AutofillActivity
-        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-                && event.getPackageName() != null && event.getPackageName().equals(packageName)
-                && resultData != null) {
+        final int eventType = event.getEventType();
+        final CharSequence eventPackageName = event.getPackageName();
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                && resultData != null
+                && eventPackageName != null && eventPackageName.equals(packageName)) {
             bindDecryptAndVerify();
         }
 
         // look for webView and trigger accessibility events if window changes
         // or if page changes in chrome
-        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-                || (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-                && event.getPackageName() != null
-                && (event.getPackageName().equals("com.android.chrome")
-                || event.getPackageName().equals("com.android.browser")))) {
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                && eventPackageName != null
+                && (eventPackageName.equals("com.android.chrome")
+                || eventPackageName.equals("com.android.browser")))) {
             // there is a chance for getRootInActiveWindow() to return null at any time. save it.
             try {
                 AccessibilityNodeInfo root = getRootInActiveWindow();
@@ -151,15 +153,15 @@ public class AutofillService extends AccessibilityService {
         }
 
         // nothing to do if field is keychain app or system ui
-        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-                || event.getPackageName() != null && event.getPackageName().equals("org.sufficientlysecure.keychain")
-                || event.getPackageName() != null && event.getPackageName().equals("com.android.systemui")) {
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                || eventPackageName != null
+                && (eventPackageName.equals("org.sufficientlysecure.keychain") || eventPackageName.equals("com.android.systemui"))) {
             dismissDialog(event);
             return;
         }
 
         if (!event.isPassword()) {
-            if (lastPassword != null && event.getEventType() == AccessibilityEvent.TYPE_VIEW_FOCUSED && event.getSource().isEditable()) {
+            if (lastPassword != null && eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED && event.getSource().isEditable()) {
                 showPasteUsernameDialog(event.getSource(), lastPassword);
                 return;
             } else {
@@ -172,7 +174,7 @@ public class AutofillService extends AccessibilityService {
         if (dialog != null && dialog.isShowing()) {
             // the current dialog must belong to this window; ignore clicks on this password field
             // why handle clicks at all then? some cases e.g. Paypal there is no initial focus event
-            if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            if (eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
                 return;
             }
             // if it was not a click, the field was refocused or another field was focused; recreate
@@ -218,7 +220,7 @@ public class AutofillService extends AccessibilityService {
             PackageManager packageManager = getPackageManager();
             ApplicationInfo applicationInfo;
             try {
-                applicationInfo = packageManager.getApplicationInfo(event.getPackageName().toString(), 0);
+                applicationInfo = packageManager.getApplicationInfo(eventPackageName.toString(), 0);
             } catch (PackageManager.NameNotFoundException e) {
                 applicationInfo = null;
             }
@@ -505,7 +507,6 @@ public class AutofillService extends AccessibilityService {
 
     @Override
     public void onInterrupt() {
-
     }
 
     private class onBoundListener implements OpenPgpServiceConnection.OnBound {
